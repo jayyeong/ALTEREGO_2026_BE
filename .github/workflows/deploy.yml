@@ -1,0 +1,187 @@
+name: Deploy to EC2
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Debug Git status
+        run: |
+          echo "===== Git Status ====="
+          git status
+          echo "===== Latest Commits ====="
+          git log -n 5 --oneline
+
+      - name: Debug project structure (BEFORE BUILD)
+        run: |
+          echo "===== Project Structure ====="
+          find src -type f -name "*.java" | sort
+          echo "===== Controller Files ====="
+          find src -name "*Controller.java"
+          echo "===== StoreService Files ====="
+          find src -name "*Store*.java"
+          echo "===== StoreController Content ====="
+          cat src/main/java/com/kuad/soma/controller/StoreController.java || echo "File not found"
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Print Gradle version
+        run: ./gradlew --version
+
+      - name: Clean Gradle
+        run: ./gradlew clean
+
+      - name: Build with Gradle (verbose)
+        run: ./gradlew build -x test --info
+
+      - name: Verify JAR contents
+        run: |
+          echo "===== JAR File Size ====="
+          ls -lh build/libs/ALTEREGO-2026-BE-0.0.1-SNAPSHOT.jar
+          echo "===== Controllers in JAR ====="
+          jar tf build/libs/ALTEREGO-2026-BE-0.0.1-SNAPSHOT.jar | grep -i controller || true
+          echo "===== StoreService in JAR ====="
+          jar tf build/libs/ALTEREGO-2026-BE-0.0.1-SNAPSHOT.jar | grep -i store || true
+
+      - name: Remove old JAR and build folder on EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            rm -f /home/ubuntu/app/ALTEREGO-2026-BE-0.0.1-SNAPSHOT.jar
+            rm -rf /home/ubuntu/app/build
+
+      - name: Copy JAR to EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: build/libs/ALTEREGO-2026-BE-0.0.1-SNAPSHOT.jar
+          target: /home/ubuntu/app
+
+      - name: Move JAR from nested build dir to app root
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            mv /home/ubuntu/app/build/libs/ALTEREGO-2026-BE-0.0.1-SNAPSHOT.jar /home/ubuntu/app/
+            rm -rf /home/ubuntu/app/build
+
+      - name: Verify JAR on EC2 (post-copy)
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "▶︎ /home/ubuntu/app 디렉토리 목록:"
+            ls -l /home/ubuntu/app
+            echo "▶︎ JAR 파일 정보:"
+            ls -l /home/ubuntu/app/ALTEREGO-2026-BE-0.0.1-SNAPSHOT.jar
+            echo "▶︎ JAR SHA256 체크섬:"
+            sha256sum /home/ubuntu/app/ALTEREGO-2026-BE-0.0.1-SNAPSHOT.jar
+
+      - name: Create application.properties on EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cat > /home/ubuntu/app/application.properties << 'EOL'
+            spring.datasource.url=jdbc:mysql://${{ secrets.DB_HOST }}:3306/${{ secrets.DB_NAME }}
+            spring.datasource.username=${{ secrets.DB_USERNAME }}
+            spring.datasource.password=${{ secrets.DB_PASSWORD }}
+            admin.password=${{ secrets.ADMIN_PASSWORD }}
+            spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+            spring.jpa.hibernate.ddl-auto=update
+            spring.jpa.show-sql=true
+            spring.jpa.properties.hibernate.format_sql=true
+            spring.jpa.database-platform=org.hibernate.dialect.MySQL8Dialect
+            server.port=8080
+            spring.jpa.properties.hibernate.jdbc.time_zone=Asia/Seoul
+            app.cors.allowed-origins=https://dp9gyh87vru1q.cloudfront.net,https://kuadarchive.com,https://www.kuadarchive.com
+            app.cors.allowed-methods=GET,POST,PUT,DELETE
+            app.cors.allowed-headers=*
+            app.cors.max-age=3600
+            # DEBUG 매핑 로그 활성화
+            logging.level.org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping=DEBUG
+            EOL
+
+      - name: Update deploy.sh on EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cat > /home/ubuntu/app/deploy.sh << 'EOF'
+            #!/bin/bash
+            echo "---- deploy.sh 실행: $(date +'%Y-%m-%dT%H:%M:%S') ----" >> /home/ubuntu/app/deploy.log
+            set +e
+            cd /home/ubuntu/app || exit 0
+            if pgrep -f "java -jar" > /dev/null; then
+              kill -15 $(pgrep -f "java -jar") >/dev/null 2>&1
+              sleep 5
+            fi
+            nohup java -jar /home/ubuntu/app/ALTEREGO-2026-BE-0.0.1-SNAPSHOT.jar \
+              --spring.config.location=file:/home/ubuntu/app/application.properties \
+              --logging.level.org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerMapping=DEBUG \
+              > nohup.out 2>&1 &
+            sleep 2
+            exit 0
+            EOF
+
+      - name: Set execute permission on deploy.sh
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: chmod +x /home/ubuntu/app/deploy.sh
+
+      - name: Run deploy.sh on EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: bash /home/ubuntu/app/deploy.sh || true
+
+      - name: Wait & verify startup on EC2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            echo "Waiting for application to start..."
+            sleep 30
+            echo "▶︎ Running Java process:"
+            ps aux | grep java | grep ALTEREGO-2026-BE-0.0.1-SNAPSHOT.jar || true
+            echo "▶︎ 최근 로그 (nohup.out):"
+            tail -n 50 /home/ubuntu/app/nohup.out
+            echo "▶︎ Test Store API:"
+            curl -i http://localhost:8080/api/store/teams || true

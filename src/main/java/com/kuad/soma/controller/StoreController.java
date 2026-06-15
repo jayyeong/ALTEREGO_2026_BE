@@ -65,6 +65,9 @@ public class StoreController {
             Receipt receipt = storeService.createOrder(checkoutRequest);
             ReceiptDTO receiptDTO = ReceiptDTO.from(receipt);
             return ResponseEntity.status(HttpStatus.CREATED).body(receiptDTO);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(new ErrorResponse(e.getMessage()));
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)

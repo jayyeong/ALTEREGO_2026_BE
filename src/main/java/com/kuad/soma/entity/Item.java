@@ -32,10 +32,17 @@ public class Item extends BaseEntity {
     @Column
     private String itemImagePath;
 
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean soldOut = false;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "team_id", nullable = false)
     private Team team;
 
     @OneToMany(mappedBy = "item")
     private List<Order> orders = new ArrayList<>();
+
+    public void toggleSoldOut() {
+        this.soldOut = !this.soldOut;
+    }
 }

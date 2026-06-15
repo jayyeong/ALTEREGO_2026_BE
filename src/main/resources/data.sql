@@ -17,9 +17,10 @@ INSERT INTO item (
   creator,
   item_image_path,
   description_image_path,
+  sold_out,
   team_id
 ) VALUES
-  (1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'ALTER EGO REVERSIBLE ECHO BAG', 35000, 'Official Goods', 'assets/store/official-goods-thumb.webp', 'assets/store/official-goods-detail.webp', 8),
-  (2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'Removable STICKER', 4000, 'Thorn Bloom', 'assets/store/thorn-bloom-sticker-thumb.webp', 'assets/store/thorn-bloom-sticker-detail.webp', 7),
-  (3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'ASCII T-SHIRT', 25000, 'Thorn Bloom', 'assets/store/thorn-bloom-tshirt-thumb.webp', 'assets/store/thorn-bloom-tshirt-detail.webp', 7),
-  (4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'Acrylic KEYRING', 9000, 'Thorn Bloom', 'assets/store/thorn-bloom-keyring-thumb.webp', 'assets/store/thorn-bloom-keyring-detail.webp', 7);
+  (1, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'ALTER EGO REVERSIBLE ECHO BAG', 25000, 'Official Goods', 'assets/store/official-goods-thumb.webp', 'assets/store/official-goods-detail.webp', false, 8),
+  (2, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'Removable STICKER', 2500, 'Thorn Bloom', 'assets/store/thorn-bloom-sticker-thumb.webp', 'assets/store/thorn-bloom-sticker-detail.webp', false, 7),
+  (3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'ASCII T-SHIRT', 15000, 'Thorn Bloom', 'assets/store/thorn-bloom-tshirt-thumb.webp', 'assets/store/thorn-bloom-tshirt-detail.webp', false, 7),
+  (4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, 'Acrylic KEYRING', 8000, 'Thorn Bloom', 'assets/store/thorn-bloom-keyring-thumb.webp', 'assets/store/thorn-bloom-keyring-detail.webp', false, 7);

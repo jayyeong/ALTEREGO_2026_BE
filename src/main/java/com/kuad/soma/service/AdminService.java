@@ -1,7 +1,9 @@
 package com.kuad.soma.service;
 
+import com.kuad.soma.entity.Item;
 import com.kuad.soma.entity.Receipt;
 import com.kuad.soma.enums.OrderStatus;
+import com.kuad.soma.repository.ItemRepository;
 import com.kuad.soma.repository.ReceiptRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -19,6 +21,7 @@ import java.util.Optional;
 public class AdminService {
 
     private final ReceiptRepository receiptRepository;
+    private final ItemRepository itemRepository;
 
     @Transactional(readOnly = true)
     public Page<Receipt> getReceipts(Pageable pageable) {
@@ -50,6 +53,20 @@ public class AdminService {
                 "completedCount", completedCount,
                 "totalAmount", totalAmount
         );
+    }
+
+    @Transactional(readOnly = true)
+    public List<Item> getAllItems() {
+        return itemRepository.findAll();
+    }
+
+    @Transactional
+    public Item toggleItemSoldOut(Long itemId) {
+        Item item = itemRepository.findById(itemId)
+                .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다. ID: " + itemId));
+
+        item.toggleSoldOut();
+        return itemRepository.save(item);
     }
 
     // 주문 상태 업데이트

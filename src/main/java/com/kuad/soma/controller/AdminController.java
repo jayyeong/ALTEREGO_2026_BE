@@ -1,7 +1,9 @@
 package com.kuad.soma.controller;
 
 import com.kuad.soma.dto.PageResponseDto;
+import com.kuad.soma.dto.ItemDTO;
 import com.kuad.soma.dto.ReceiptDTO;
+import com.kuad.soma.entity.Item;
 import com.kuad.soma.entity.Receipt;
 import com.kuad.soma.enums.OrderStatus;
 import com.kuad.soma.service.AdminService;
@@ -78,6 +80,31 @@ public class AdminController {
     @GetMapping(value = "/receipts/summary", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<Map<String, Object>> getReceiptSummary() {
         return ResponseEntity.ok(adminService.getReceiptSummary());
+    }
+
+    /**
+     * 관리자 상품 목록 조회
+     */
+    @GetMapping(value = "/items", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<List<ItemDTO>> getItems() {
+        List<ItemDTO> items = adminService.getAllItems().stream()
+                .map(ItemDTO::from)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(items);
+    }
+
+    /**
+     * 상품 품절 상태 토글
+     */
+    @PutMapping("/items/{id}/toggle-sold-out")
+    public ResponseEntity<ItemDTO> toggleItemSoldOut(@PathVariable Long id) {
+        try {
+            Item updatedItem = adminService.toggleItemSoldOut(id);
+            return ResponseEntity.ok(ItemDTO.from(updatedItem));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
     /**

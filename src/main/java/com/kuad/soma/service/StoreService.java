@@ -105,6 +105,10 @@ public class StoreService {
                 Item item = itemRepository.findById(orderRequest.getItemId())
                         .orElseThrow(() -> new IllegalArgumentException("상품을 찾을 수 없습니다: " + orderRequest.getItemId()));
 
+                if (item.isSoldOut()) {
+                    throw new IllegalArgumentException("품절된 상품입니다: " + item.getName());
+                }
+
                 BigDecimal itemPrice = item.getPrice();
                 BigDecimal orderTotalPrice = itemPrice.multiply(BigDecimal.valueOf(orderRequest.getQuantity()));
 

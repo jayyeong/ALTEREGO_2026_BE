@@ -23,6 +23,7 @@ public class ItemDTO {
     private String itemImagePath;
     private Long teamId;
     private String teamName;
+    private boolean soldOut;
 
     public static ItemDTO from(Item item) {
         return ItemDTO.builder()
@@ -36,6 +37,7 @@ public class ItemDTO {
                 .itemImagePath(item.getItemImagePath())
                 .teamId(item.getTeam().getId())
                 .teamName(item.getTeam().getName())
+                .soldOut(item.isSoldOut())
                 .build();
     }
 }

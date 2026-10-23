@@ -25,6 +25,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class StoreService {
 
+    private final CheckoutValidator checkoutValidator;
     private final ItemRepository itemRepository;
     private final OrderRepository orderRepository;
     private final ReceiptRepository receiptRepository;
@@ -85,7 +86,8 @@ public class StoreService {
      */
     @Transactional
     public Receipt createOrder(CheckoutRequest checkoutRequest) {
-        try {
+        checkoutValidator.validate(checkoutRequest);
+        {
             // 영수증 생성
             Receipt receipt = Receipt.builder()
                     .accountHolder(checkoutRequest.getAccountHolder())
@@ -109,6 +111,8 @@ public class StoreService {
                     throw new IllegalArgumentException("품절된 상품입니다: " + item.getName());
                 }
 
+                checkoutValidator.validateItem(item, orderRequest);
+
                 BigDecimal itemPrice = item.getPrice();
                 BigDecimal orderTotalPrice = itemPrice.multiply(BigDecimal.valueOf(orderRequest.getQuantity()));
 
@@ -130,18 +134,7 @@ public class StoreService {
             // 총 금액 업데이트
             savedReceipt.updateTotalAmount(totalAmount);
             return receiptRepository.save(savedReceipt);
-        } catch (Exception e) {
-            e.printStackTrace(); // 로그에 예외 스택 트레이스 출력
-            throw e; // 다시 예외 던지기
         }
-    }
-
-    /**
-     * 주문 조회
-     */
-    @Transactional(readOnly = true)
-    public Optional<Receipt> getReceiptById(Long receiptId) {
-        return receiptRepository.findById(receiptId);
     }
 
     /**
@@ -149,14 +142,9 @@ public class StoreService {
      */
     @Transactional(readOnly = true)
     public Optional<Receipt> getReceiptByPublicToken(String publicToken) {
-        return receiptRepository.findByPublicToken(publicToken);
+        if (publicToken == null || !publicToken.matches("[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")) return Optional.empty();
+        return receiptRepository.findByPublicToken(publicToken)
+                .filter(receipt -> receipt.getStatus() != com.kuad.soma.enums.OrderStatus.DELETED);
     }
 
-    /**
-     * 특정 사용자의 주문 내역 조회
-     */
-    @Transactional(readOnly = true)
-    public List<Receipt> getReceiptsByPhoneNumber(String phoneNumber) {
-        return receiptRepository.findByPhoneNumberOrderByCreatedAtDesc(phoneNumber);
-    }
 }

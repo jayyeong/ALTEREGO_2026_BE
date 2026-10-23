@@ -26,11 +26,9 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
-@CrossOrigin(origins = "*")
 public class AdminController {
 
-    @Value("${admin.password}")
-    private String adminPassword;
+    private final com.kuad.soma.service.AdminAuthService auth;
 
     private final AdminService adminService;
     private final ExcelExportService excelExportService;
@@ -40,12 +38,16 @@ public class AdminController {
      */
     @PostMapping("/login")
     public ResponseEntity<?> adminLogin(@RequestBody Map<String, String> creds) {
-        String password = creds.get("password");
-        if (adminPassword.equals(password)) {
-            return ResponseEntity.ok(Map.of("success", true, "message", "Login successful"));
-        }
-        return ResponseEntity.status(401)
-                .body(Map.of("success", false, "message", "Invalid password"));
+        return auth.login(creds.get("password"))
+                .<ResponseEntity<?>>map(token -> ResponseEntity.ok().header("Cache-Control", "no-store")
+                        .body(Map.of("success", true, "token", token)))
+                .orElseGet(() -> ResponseEntity.status(401).body(Map.of("success", false, "message", "Invalid password")));
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(jakarta.servlet.http.HttpServletRequest request) {
+        auth.logout(com.kuad.soma.config.AdminAuthInterceptor.token(request));
+        return ResponseEntity.noContent().build();
     }
 
     /**
@@ -58,6 +60,8 @@ public class AdminController {
 
         int p = (page == null ? 0 : page);
         int s = (size == null ? 20 : size);
+
+        if (p < 0 || s < 1 || s > 100) return ResponseEntity.badRequest().build();
 
         Page<Receipt> receiptPage = adminService.getReceipts(PageRequest.of(p, s));
 

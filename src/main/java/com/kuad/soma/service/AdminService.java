@@ -31,7 +31,7 @@ public class AdminService {
 
     @Transactional(readOnly = true)
     public Optional<Receipt> getReceiptById(Long id) {
-        return receiptRepository.findById(id);
+        return receiptRepository.findById(id).filter(receipt -> receipt.getStatus() != OrderStatus.DELETED);
     }
 
     // 전체 조회 메서드 (삭제되지 않은 것만)
@@ -94,6 +94,8 @@ public class AdminService {
     public Receipt toggleReceiptStatus(Long id) {
         Receipt receipt = receiptRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("주문을 찾을 수 없습니다. ID: " + id));
+
+        if (receipt.getStatus() == OrderStatus.DELETED) throw new IllegalArgumentException("삭제된 주문입니다.");
 
         OrderStatus newStatus = receipt.getStatus() == OrderStatus.PENDING_PAYMENT
                 ? OrderStatus.PAYMENT_COMPLETED

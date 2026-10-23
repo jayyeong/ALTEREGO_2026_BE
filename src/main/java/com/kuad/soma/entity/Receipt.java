@@ -47,6 +47,7 @@ public class Receipt extends BaseEntity {
 
     @JsonManagedReference
     @OneToMany(mappedBy = "receipt", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
     private List<Order> orders = new ArrayList<>();
 
     public void updateTotalAmount(BigDecimal totalAmount) {

@@ -64,14 +64,14 @@ public class StoreController {
         try {
             Receipt receipt = storeService.createOrder(checkoutRequest);
             ReceiptDTO receiptDTO = ReceiptDTO.from(receipt);
-            return ResponseEntity.status(HttpStatus.CREATED).body(receiptDTO);
+            return ResponseEntity.status(HttpStatus.CREATED).header("Cache-Control", "no-store").body(receiptDTO);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ErrorResponse(e.getMessage()));
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ErrorResponse("주문 처리 중 오류가 발생했습니다: " + e.getMessage()));
+                    .body(new ErrorResponse("주문 처리 중 오류가 발생했습니다."));
         }
     }
 
@@ -93,32 +93,14 @@ public class StoreController {
             Optional<Receipt> receiptOpt = storeService.getReceiptByPublicToken(publicToken);
             if (receiptOpt.isPresent()) {
                 ReceiptDTO receiptDTO = ReceiptDTO.from(receiptOpt.get());
-                return ResponseEntity.ok(receiptDTO);
+                return ResponseEntity.ok().header("Cache-Control", "no-store").body(receiptDTO);
             } else {
                 return ResponseEntity.notFound().build();
             }
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ErrorResponse("영수증 정보를 불러오는 중 오류가 발생했습니다: " + e.getMessage()));
-        }
-    }
-
-    /**
-     * 사용자 주문 내역 조회
-     */
-    @GetMapping("/receipts/user")
-    public ResponseEntity<?> getUserReceipts(@RequestParam String phoneNumber) {
-        try {
-            List<Receipt> receipts = storeService.getReceiptsByPhoneNumber(phoneNumber);
-            List<ReceiptDTO> receiptDTOs = receipts.stream()
-                    .map(ReceiptDTO::from)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(receiptDTOs);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(new ErrorResponse("주문 내역을 불러오는 중 오류가 발생했습니다: " + e.getMessage()));
+                    .body(new ErrorResponse("영수증 정보를 불러오는 중 오류가 발생했습니다."));
         }
     }
 
